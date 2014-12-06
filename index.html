@@ -1,0 +1,24 @@
+﻿<!DOCTYPE html> 
+<html>
+	<head>
+		<script src="./jaws-dynamic.js" type="text/javascript"></script>
+		<title>LD 31!</title>
+		<meta charset="UTF8" ></meta>
+	</head>
+	<body bgcolor="gray">
+		<center>
+			<canvas width=400 height=600 style="background-color: #444455;"></canvas>
+		</center>
+		<script>
+			function oneScreen(){
+				// le programming here !
+			}
+			
+			jaws.onload = function(){
+				jaws.unpack();
+				jaws.assets.add(["./img/bubble_red.png", "./img/bubble_green.png", "./img/bubble_blue.png", "./img/shooter.png", "./img/paused.png"]);
+				jaws.start( oneScreen );
+			}
+		</script>
+	</body>
+</html>
