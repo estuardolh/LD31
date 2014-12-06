@@ -7,16 +7,226 @@
 	</head>
 	<body bgcolor="gray">
 		<center>
-			<canvas width=400 height=600 style="background-color: #444455;"></canvas>
+			<canvas width=704 height=384 style="background-color: #444455;"></canvas>
 		</center>
 		<script>
 			function oneScreen(){
-				// le programming here !
+				var tile_w;
+				var tile_h;
+				var tile_scaled_factor = 1;
+			
+				var hero_spritesheet;
+				var hero_sprite;
+				var portal_sprite;
+				var guessbox_sprite;
+				var levelA_sprite;
+				
+				var portal_animation;
+				var guessbox_animation;
+				var places_animation;
+				
+				var map_spritesheet;
+				var block_img;
+				var door_img;
+				var portal_img;
+				var cave_img;
+				var rock_img;
+				var onscreen_map;	// one screen :3
+				
+				this.setup = function(){
+					// scaled (?)
+					//tile_scaled_factor = 2;
+					//tile_w = 16 * tile_scaled_factor;
+					//tile_h = 16 * tile_scaled_factor;
+					// implement scale please
+					
+					// level spritesheet
+					map_spritesheet =
+					new jaws.SpriteSheet({image: "./img/map.png", orientation: "down", frame_size: [ 16 , 16]});
+					
+					portal_animation = new jaws.Animation({ sprite_sheet: "./img/map.png", frame_size: [16, 16], frame_duration: 400 });
+					portal_animation = portal_animation.slice(3, 6);
+					
+					guessbox_animation = new jaws.Animation({ sprite_sheet: "./img/guessbox.png", frame_size: [16, 16], frame_duration: 600 });
+					places_animation = new jaws.Animation({ sprite_sheet: "./img/places.png", frame_size: [192, 48], frame_duration: 600, orientation: "down" });
+					levelA_sprite = new jaws.Sprite({image: places_animation.next(), x:0, y: 0 })
+					// map
+					onscreen_map =
+					new jaws.TileMap({size:[12, 20], cell_size: [16, 16]});
+					
+					// images
+					block_img = map_spritesheet.frames[0];
+					door_img = map_spritesheet.frames[1];
+					portal_img = map_spritesheet.frames[3];
+					cave_img = map_spritesheet.frames[6];
+					rock_img = map_spritesheet.frames[7];
+					
+					var new_block;
+					
+					//// Level A
+					var j = 0;
+					
+					guessbox_sprite = new jaws.Sprite({ image: guessbox_animation.next(), x: 6 * 16, y: 0 });
+					guessbox_sprite.is_solid = false;
+					guessbox_sprite.type = 'guessbox';
+					guessbox_sprite.open = function(){
+						// good or evil ?
+						// onscreen_map.push( good_evil );
+					};
+					onscreen_map.push( guessbox_sprite );					
+					
+					j += 2;
+					
+					/*for( var i = 6 ; i < 10 ; i ++ ){
+						new_block = new jaws.Sprite({ image: rock_img, x: i * 16, y: j*16 });
+						new_block.is_solid = true;
+						new_block.type = 'rock';
+						onscreen_map.push( new_block );
+					}*/
+					
+					j += 1;
+					var i = 0;
+					for( ; i < onscreen_map.size[0] - 2 ; i ++ ){
+						new_block = new jaws.Sprite({ image:block_img, x: i * 16, y: 16*j });
+						new_block.type = 'block';
+						new_block.is_solid = true;
+						
+						onscreen_map.push( new_block );
+					}
+					
+					new_block = new jaws.Sprite({ image:rock_img, x: 4 * 16, y: 16*(j - 1) });
+					new_block.type = 'block';
+					new_block.is_solid = true;
+					onscreen_map.push( new_block );
+									
+					j += 4;
+					
+					new_block = new jaws.Sprite({ image:door_img, x: 10 * 16, y: (j - 1)*16 });
+					new_block.type = 'door';
+					new_block.is_solid = false;
+					onscreen_map.push( new_block );
+					
+					// go !
+					portal_sprite = new jaws.Sprite({ image: portal_img, x: 2 * 16, y: (j-2)*16 });
+					portal_sprite.type = 'portal';
+					portal_sprite.is_solid = false;
+					onscreen_map.push( portal_sprite );
+					
+					for( i = 3 ; i < onscreen_map.size[0] - 1 ; i ++){
+						var new_block;
+						new_block = new jaws.Sprite({ image:block_img, x: i * 16, y: j*16 });
+						new_block.type = 'block';
+						new_block.is_solid = true;
+						onscreen_map.push( new_block );
+					}
+					
+					new_sprite = new jaws.Sprite({ image: cave_img, x: 2 * 16, y: j*16 });
+					new_sprite.is_solid = false;
+					new_sprite.type = 'cave';
+					onscreen_map.push( new_sprite );
+					
+					// hero
+					hero_spritesheet = 
+					new jaws.SpriteSheet({image: "./img/hero.png", orientation: "down", frame_size: [16, 16]});
+					hero_sprite = 
+					new jaws.Sprite({image: hero_spritesheet.frames[0], x:0, y:0, anchor:"top_left" });
+					
+					hero_sprite.vx = 0;
+					hero_sprite.vy = 0;
+					hero_sprite.isJumping = false;
+					
+					hero_sprite.update = function(){
+						this.x += this.vx;
+						
+						// collition in X?
+						var block_x = onscreen_map.atRect( hero_sprite.rect() ).filter( function( element ){ return element.is_solid; } )[0];
+						if( block_x ){
+							this.x -= this.vx;
+						}
+						this.vx = 0;
+						
+						this.y += parseInt(this.vy);
+						
+						// collition with block in Y?
+						var block_y = onscreen_map.atRect( hero_sprite.rect() ).filter( function( element ){ return element.is_solid; } )[0];
+						if( block_y ){
+							if( this.vy > 0 && block_y.is_solid == true ){
+								this.setBottom( block_y.rect().y - 1 );
+								this.isJumping = false;
+							}else if( this.vy <= 0 ){
+								this.setTop( block_y.rect().bottom - 1 );
+								this.isJumping = true;
+							}
+							
+							this.vy = 0;
+						}
+					};
+					hero_sprite.listen_keys = function(){
+						var dx = 1.5;
+						var dy = 1.5;
+						
+						if( jaws.pressed("left") ){
+							hero_sprite.vx = - dx;
+							hero_sprite.setImage( hero_spritesheet.frames[1] );
+						}
+						
+						if( jaws.pressed("right") ){
+							hero_sprite.vx = dx;
+							hero_sprite.setImage( hero_spritesheet.frames[0] );
+						}
+						
+						if( jaws.pressed("up") ){
+							if( hero_sprite.isJumping == false ){
+								hero_sprite.vy = - 3*dy ;
+								hero_sprite.isJumping = true;
+							}
+						}
+						
+						if( jaws.pressed("down") ){
+							hero_sprite.vy = dy;
+						}
+						
+						if( jaws.pressed("a") ){
+							var hero_scaled;
+							var hero_scaled_spritesheet;
+							hero_scaled = jaws.retroScaleImage( jaws.assets.get("./img/hero.png"), 2)
+							
+							hero_scaled_spritesheet = new jaws.SpriteSheet({image: hero_scaled, frame_size: [32, 32], orientation: "down"})
+							hero_sprite.setImage( hero_scaled_spritesheet.frames[0] );
+						}
+					};					
+					
+				};
+				
+				this.update = function(){
+					// hero
+					hero_sprite.vy += 0.4;
+					hero_sprite.listen_keys();
+					hero_sprite.update();
+					
+					portal_sprite.setImage( portal_animation.next() );
+					guessbox_sprite.setImage( guessbox_animation.next() );
+				};
+				
+				this.draw = function(){
+					jaws.clear();
+					
+					levelA_sprite.draw();
+					
+					onscreen_map.all().forEach(function( entry ){
+						entry.draw();
+					});
+					
+					hero_sprite.draw();
+				};
 			}
 			
 			jaws.onload = function(){
 				jaws.unpack();
-				jaws.assets.add(["./img/bubble_red.png", "./img/bubble_green.png", "./img/bubble_blue.png", "./img/shooter.png", "./img/paused.png"]);
+				jaws.assets.add(["./img/hero.png",
+								"./img/map.png",
+								"./img/guessbox.png",
+								"./img/places.png"]);
 				jaws.start( oneScreen );
 			}
 		</script>
