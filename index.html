@@ -7,7 +7,7 @@
 	</head>
 	<body bgcolor="gray">
 		<center>
-			<canvas width=704 height=384 style="background-color: #444455;"></canvas>
+			<canvas id="screen" width=704 height=384 style="background-color: #444455;"></canvas>
 		</center>
 		<script>
 			function oneScreen(){
@@ -15,22 +15,33 @@
 				var tile_h;
 				var tile_scaled_factor = 1;
 			
+				var hero_lifes = 3;
+				var hero_hearts = [];
+				var hero_inmunity = false;
+			
 				var hero_spritesheet;
 				var hero_sprite;
 				var portal_sprite;
 				var guessbox_sprite;
 				var levelA_sprite;
+				var possion_sprite;
 				
+				var hero_right_animation;
+				var hero_left_animation;
 				var portal_animation;
 				var guessbox_animation;
 				var places_animation;
+				var possion_animation;
+				var croco_right_animation;
+				var croco_left_animation;
 				
 				var map_spritesheet;
 				var block_img;
 				var door_img;
 				var portal_img;
 				var cave_img;
-				var rock_img;
+				var box_img;
+				var heart_img;
 				var onscreen_map;	// one screen :3
 				
 				this.setup = function(){
@@ -48,8 +59,18 @@
 					portal_animation = portal_animation.slice(3, 6);
 					
 					guessbox_animation = new jaws.Animation({ sprite_sheet: "./img/guessbox.png", frame_size: [16, 16], frame_duration: 600 });
+					possion_animation = guessbox_animation.slice(3,4);					
+					guessbox_animation = guessbox_animation.slice( 0, 2 );
 					places_animation = new jaws.Animation({ sprite_sheet: "./img/places.png", frame_size: [192, 48], frame_duration: 600, orientation: "down" });
-					levelA_sprite = new jaws.Sprite({image: places_animation.next(), x:0, y: 0 })
+					croco_right_animation = new jaws.Animation({ sprite_sheet: "./img/croco.png", frame_size: [16, 16], frame_duration: 200 });
+					croco_left_animation = croco_right_animation.slice(2, 4);
+					croco_right_animation = croco_right_animation.slice(0, 2);
+					
+					levelA_sprite = new jaws.Sprite({image: places_animation.frames[0], x:0, y: 0 });
+					levelA_sprite.visible = true;
+					
+					levelB_sprite = new jaws.Sprite({image: places_animation.frames[1], x:0, y: 3*16 });
+					levelB_sprite.visible = true;
 					// map
 					onscreen_map =
 					new jaws.TileMap({size:[12, 20], cell_size: [16, 16]});
@@ -59,19 +80,50 @@
 					door_img = map_spritesheet.frames[1];
 					portal_img = map_spritesheet.frames[3];
 					cave_img = map_spritesheet.frames[6];
-					rock_img = map_spritesheet.frames[7];
+					box_img = map_spritesheet.frames[7];
+					heart_img = map_spritesheet.frames[8];
 					
 					var new_block;
 					
 					//// Level A
 					var j = 0;
 					
-					guessbox_sprite = new jaws.Sprite({ image: guessbox_animation.next(), x: 6 * 16, y: 0 });
-					guessbox_sprite.is_solid = false;
+					guessbox_sprite = new jaws.Sprite({ image: guessbox_animation.next(), x: 7 * 16, y: 0 });
+					guessbox_sprite.is_solid = true;
+					guessbox_sprite.visible = true;
 					guessbox_sprite.type = 'guessbox';
+					guessbox_sprite.possions = 4;
 					guessbox_sprite.open = function(){
-						// good or evil ?
-						// onscreen_map.push( good_evil );
+						var new_possion = false;
+						if( possion_sprite == null ){
+							new_possion = true;
+						}else{
+							if( possion_sprite.time_life < 0 && possion_sprite.visible == false ){
+								new_possion = true;
+							}
+						}
+						if( new_possion == true ){
+							possion_sprite =
+							new jaws.Sprite({ image: possion_animation.next(), x: guessbox_sprite.x, y: guessbox_sprite.y });
+							possion_sprite.is_solid = false;
+							possion_sprite.type = 'possion';
+							possion_sprite.time_life = 55;
+							possion_sprite.vy = 0.6;
+							possion_sprite.visible = true;
+							possion_sprite.update = function(){
+								this.time_life --;
+								if( this.time_life < 0 ){
+									// not update position
+								}else{
+									this.y += this.vy;
+								}
+							};
+							
+							onscreen_map.push( possion_sprite );
+						}
+					};
+					guessbox_sprite.update = function(){
+						this.setImage( guessbox_animation.next() );
 					};
 					onscreen_map.push( guessbox_sprite );					
 					
@@ -86,50 +138,135 @@
 					
 					j += 1;
 					var i = 0;
-					for( ; i < onscreen_map.size[0] - 2 ; i ++ ){
+					for( ; i < onscreen_map.size[0] - 3 ; i ++ ){
 						new_block = new jaws.Sprite({ image:block_img, x: i * 16, y: 16*j });
 						new_block.type = 'block';
 						new_block.is_solid = true;
+						new_block.visible = true;
+						new_block.update = function(){};
 						
 						onscreen_map.push( new_block );
 					}
-					
-					new_block = new jaws.Sprite({ image:rock_img, x: 4 * 16, y: 16*(j - 1) });
+					new_block = new jaws.Sprite({ image:block_img, x:11 * 16, y: j*16 });
 					new_block.type = 'block';
 					new_block.is_solid = true;
+					new_block.visible = true;
+					new_block.update = function(){};
+					
 					onscreen_map.push( new_block );
-									
-					j += 4;
+					
+					new_block = new jaws.Sprite({ image:box_img, x: 3 * 16, y: 16*(j - 1) });
+					new_block.type = 'box';
+					new_block.is_solid = true;
+					new_block.visible = true;
+					new_block.update = function(){};
+					onscreen_map.push( new_block );
+					
+					croco_sprite = new jaws.Sprite({ image: croco_right_animation.next(), x:8*16, y :(j - 2)*16 })
+					croco_sprite.is_solid = true;
+					croco_sprite.type = 'enemy';
+					croco_sprite.visible = true;
+					croco_sprite.vy = 0;
+					croco_sprite.vx = 0.5;
+					croco_sprite.time_cicle = 0;
+					croco_sprite.follow_time = 200;
+					croco_sprite.follow_hero = false;
+					croco_sprite.update = function(){
+						this.x += this.vx;
+						
+						this.vy += 0.4;
+						this.y += this.vy;
+						var block_y = onscreen_map.atRect( croco_sprite.rect() ).filter(function(element){ return element.is_solid; })[0];
+						if( block_y ){
+							if( this.vy > 0 && block_y.is_solid == true ){
+								this.setBottom( block_y.y - 1 );
+							}
+							this.vy = 0;
+						}
+					
+						// if at least one time is in the vision of croco...
+						var distance_croco_hero = jaws.distanceBetween( hero_sprite, this );
+						if( distance_croco_hero < 20 
+						&& ( ( hero_sprite.y >= this.y - 1 && hero_sprite.y <= this.y + 1 ) )
+						&& ( ( this.vx > 0 && this.x < hero_sprite.x ) || ( this.vx < 0 && this.x > hero_sprite.x ) ) ){
+							this.follow_hero = true;
+						}
+					
+						// just patrol !
+						if( this.follow_hero == false ){
+							
+							this.time_cicle -- ;
+							if( this.time_cicle < 0 ){
+								this.time_cicle = 200;
+								this.vx *= -1;
+							}
+						}else{
+							if( this.x < hero_sprite.x ){
+								this.vx = Math.abs(this.vx);
+							}else{
+								this.vx = - Math.abs(this.vx);
+							}
+							
+							// if not reach hero in xx then just patrol
+							this.follow_time --;
+							if( this.follow_time < 0 ){
+								this.follow_hero = false;
+								this.follow_time = 500;
+							}
+						}
+						
+						if( croco_sprite.vx > 0 ){
+							croco_sprite.setImage( croco_right_animation.next() );					
+						}else{
+							croco_sprite.setImage( croco_left_animation.next() );					
+						}
+					};
+					
+					j += 3;
 					
 					new_block = new jaws.Sprite({ image:door_img, x: 10 * 16, y: (j - 1)*16 });
 					new_block.type = 'door';
 					new_block.is_solid = false;
+					new_block.visible = true;
+					new_block.update = function(){};
 					onscreen_map.push( new_block );
 					
 					// go !
 					portal_sprite = new jaws.Sprite({ image: portal_img, x: 2 * 16, y: (j-2)*16 });
 					portal_sprite.type = 'portal';
 					portal_sprite.is_solid = false;
+					portal_sprite.visible = true;
+					portal_sprite.update = function(){
+						this.setImage( portal_animation.next() );
+					};
 					onscreen_map.push( portal_sprite );
 					
-					for( i = 3 ; i < onscreen_map.size[0] - 1 ; i ++){
+					for( i = 3 ; i < onscreen_map.size[0] ; i ++){
 						var new_block;
 						new_block = new jaws.Sprite({ image:block_img, x: i * 16, y: j*16 });
 						new_block.type = 'block';
 						new_block.is_solid = true;
+						new_block.visible = true;
+						new_block.update = function(){};
 						onscreen_map.push( new_block );
 					}
 					
 					new_sprite = new jaws.Sprite({ image: cave_img, x: 2 * 16, y: j*16 });
 					new_sprite.is_solid = false;
 					new_sprite.type = 'cave';
+					new_sprite.visible = true;
+					new_sprite.update = function(){};
 					onscreen_map.push( new_sprite );
 					
 					// hero
-					hero_spritesheet = 
+					/*hero_spritesheet = 
 					new jaws.SpriteSheet({image: "./img/hero.png", orientation: "down", frame_size: [16, 16]});
+					*/
+					hero_right_animation = new jaws.Animation({ sprite_sheet: "./img/hero.png", orientation: "down", frame_size: [16, 16], frame_duration: 100});
+					hero_left_animation = hero_right_animation.slice(2, 4);
+					hero_right_animation = hero_right_animation.slice(0, 2);
 					hero_sprite = 
-					new jaws.Sprite({image: hero_spritesheet.frames[0], x:0, y:0, anchor:"top_left" });
+					new jaws.Sprite({image: hero_right_animation.frames[0], x:0, y:0, anchor:"top_left" });
 					
 					hero_sprite.vx = 0;
 					hero_sprite.vy = 0;
@@ -140,7 +277,18 @@
 						
 						// collition in X?
 						var block_x = onscreen_map.atRect( hero_sprite.rect() ).filter( function( element ){ return element.is_solid; } )[0];
-						if( block_x ){
+						var crock_x = jaws.collide(croco_sprite, this, function(){
+							
+							setTimeout( function(){
+								hero_inmunity = false;
+							}, 1000 )
+							
+							if( hero_inmunity == false ){
+								hero_lifes --;
+								hero_inmunity = true;
+							}
+						} );
+						if( block_x || crock_x ){
 							this.x -= this.vx;
 						}
 						this.vx = 0;
@@ -154,7 +302,11 @@
 								this.setBottom( block_y.rect().y - 1 );
 								this.isJumping = false;
 							}else if( this.vy <= 0 ){
-								this.setTop( block_y.rect().bottom - 1 );
+								this.setTop( block_y.rect().bottom + 1 );
+								if( block_y.type == 'guessbox' ){
+									block_y.open();
+								}
+								
 								this.isJumping = true;
 							}
 							
@@ -167,12 +319,12 @@
 						
 						if( jaws.pressed("left") ){
 							hero_sprite.vx = - dx;
-							hero_sprite.setImage( hero_spritesheet.frames[1] );
+							hero_sprite.setImage( hero_left_animation.next() );
 						}
 						
 						if( jaws.pressed("right") ){
 							hero_sprite.vx = dx;
-							hero_sprite.setImage( hero_spritesheet.frames[0] );
+							hero_sprite.setImage( hero_right_animation.next() );
 						}
 						
 						if( jaws.pressed("up") ){
@@ -204,20 +356,45 @@
 					hero_sprite.listen_keys();
 					hero_sprite.update();
 					
-					portal_sprite.setImage( portal_animation.next() );
-					guessbox_sprite.setImage( guessbox_animation.next() );
+					portal_sprite.update();
+					guessbox_sprite.update();
+					croco_sprite.update();
+					
+					onscreen_map.all().forEach(function( element ){
+						element.update();
+					});
+					if( possion_sprite != null ){
+						if( possion_sprite.visible == true ){
+							possion_sprite.update();
+						}
+					}
+					
+					hero_hearts = [];
+					for( var i = 0; i < hero_lifes ; i ++){
+						hero_hearts.push( new jaws.Sprite({ image: heart_img, x: i * 16, y: 0, anchor: "top_left" }) );
+					}
+					
+					if( hero_lifes < 0 ){
+						jaws.game_loop.pause();
+					}
 				};
 				
 				this.draw = function(){
 					jaws.clear();
 					
 					levelA_sprite.draw();
+					levelB_sprite.draw();
 					
 					onscreen_map.all().forEach(function( entry ){
-						entry.draw();
+						if( entry.visible == true ){
+							entry.draw();
+						}
 					});
 					
 					hero_sprite.draw();
+					croco_sprite.draw();
+					
+					hero_hearts.forEach( function(element){ element.draw(); } );
 				};
 			}
 			
@@ -226,7 +403,8 @@
 				jaws.assets.add(["./img/hero.png",
 								"./img/map.png",
 								"./img/guessbox.png",
-								"./img/places.png"]);
+								"./img/places.png",
+								"./img/croco.png"]);
 				jaws.start( oneScreen );
 			}
 		</script>
