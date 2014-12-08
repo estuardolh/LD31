@@ -244,13 +244,6 @@
 					
 					j += 2;
 					
-					/*for( var i = 6 ; i < 10 ; i ++ ){
-						new_block = new jaws.Sprite({ image: rock_img, x: i * 16, y: j*16 });
-						new_block.is_solid = true;
-						new_block.type = 'rock';
-						onscreen_map.push( new_block );
-					}*/
-					
 					j += 1;
 					var i = 0;
 					for( ; i < onscreen_map.size[0] - 3 ; i ++ ){
@@ -478,6 +471,12 @@
 					hero_sprite.update = function(){
 						this.x += this.vx;
 						
+						// reached level C ?
+						if( this.y > 16 * ( onscreen_map.size[1] / 2 ) && croco_sprite.visible == true ){
+							croco_sprite.x = (onscreen_map.size[0] - 2)*16;
+							croco_sprite.y = (onscreen_map.size[1] / 2)*16;
+						}
+
 						// collition in X?
 						var block_x = onscreen_map.atRect( hero_sprite.rect() ).filter( function( element ){ return element.is_solid; } )[0];
 						
