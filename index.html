@@ -7,10 +7,84 @@
 	</head>
 	<body bgcolor="gray">
 		<center>
-			<canvas id="screen" width=704 height=384 style="background-color: #444455;"></canvas>
+			<canvas id="screen" width=190 height=320 style="background-color: #444455;"></canvas>
 		</center>
 		<script>
+			function oneScreen_menu(){
+				var menu_index = 0;
+				var menu_items = [];
+				var menu_sprite;
+				var menu_animation;
+				var menu_spritesheet;
+				var menu_sound;
+				var menu_sound_enter;
+				var title_sprite;
+				
+				this.setup = function(){
+					menu_spritesheet = jaws.SpriteSheet({ image:"./img/menu.png", frame_size: [128, 16], orientation: "down" });
+					
+					title_sprite = jaws.Sprite({ image: menu_spritesheet.frames[2], x: jaws.width / 2 - 16, y: jaws.height / 2 - 3*16, anchor:"top_left" });
+					menu_sprite = jaws.Sprite({ image: menu_spritesheet.frames[0], x: jaws.width / 2 - 8, y: jaws.height / 2 - 8, anchor:"top_left" });
+					menu_sound = jaws.Audio({ audio: ["./sound/select.wav"], volume: 1.0 });
+					menu_sound_enter = jaws.Audio({ audio: ["./sound/enter.wav"], volume: 1.0 });
+					
+					menu_index = 0;
+					menu_items.push("start");
+					menu_items.push("f");
+				};
+				this.update = function(){
+					jaws.on_keydown("enter", function(){
+						
+						menu_sound_enter.stop();
+						menu_sound_enter.play();
+						
+						if( menu_index == 0 ){
+							setTimeout(function(){
+								// pretty delay
+								jaws.switchGameState(oneScreen);
+							}, 900)
+						}else if( menu_index == 1 ){
+							var ans = confirm("Please, follow me on Github! github.com/Estuardolh");
+							if( ans ){
+								window.location="http://www.github.com/Estuardolh";
+							}
+						}
+						
+					});
+				
+					jaws.on_keydown( "down", function(){
+						menu_index ++;
+						
+						menu_sound.stop();
+						menu_sound.play();
+					} );
+					
+					jaws.on_keydown( "up", function(){
+						menu_index --;
+						
+						menu_sound.stop();
+						menu_sound.play();
+					} );
+					
+					if( menu_index < 0 ){
+						menu_index = menu_items.length - 1;
+					}
+					if( menu_index > menu_items.length - 1 ){
+						menu_index = 0;
+					}
+					
+					menu_sprite.setImage( menu_spritesheet.frames[ menu_index ] )
+				};
+				this.draw = function(){
+					jaws.clear();
+					menu_sprite.draw();
+					title_sprite.draw();
+				};
+			}
+			
 			function oneScreen(){
+			
+				var paused = false;
 				var tile_w;
 				var tile_h;
 				var tile_scaled_factor = 1;
@@ -25,7 +99,13 @@
 				var guessbox_sprite;
 				var levelA_sprite;
 				var possion_sprite;
+				var croco_sprite;
+				var crocodead_sprite;
+				var crocodead_sprite2;
+				var fire_sprite;
+				var key_sprite;
 				
+				var fire_animation;
 				var hero_right_animation;
 				var hero_left_animation;
 				var portal_animation;
@@ -34,6 +114,14 @@
 				var possion_animation;
 				var croco_right_animation;
 				var croco_left_animation;
+				var crocodead_right_animation;
+				var crocodead_left_animation;
+				
+				var audio_pause;
+				var audio_hurt;
+				var audio_jump;
+				var audio_powerup;
+				var audio_fire;
 				
 				var map_spritesheet;
 				var block_img;
@@ -42,7 +130,10 @@
 				var cave_img;
 				var box_img;
 				var heart_img;
+				var key_img;
 				var onscreen_map;	// one screen :3
+				
+				var z_pressed = false;
 				
 				this.setup = function(){
 					// scaled (?)
@@ -55,15 +146,24 @@
 					map_spritesheet =
 					new jaws.SpriteSheet({image: "./img/map.png", orientation: "down", frame_size: [ 16 , 16]});
 					
+					audio_pause = jaws.Audio({ audio: ["./sound/select.wav"], volume: 2.0 });
+					audio_hurt = jaws.Audio({ audio: ["./sound/hurt.mp3"], volume: 1.0 });
+					audio_jump = jaws.Audio({ audio: ["./sound/jump.mp3"], volume: 1.0 });
+					audio_powerup = jaws.Audio({ audio: ["./sound/powerup.wav"], volume: 1.0 });
+					audio_fire = jaws.Audio({ audio: ["./sound/explosion.mp3"], volume: 1.0 });
+					
 					portal_animation = new jaws.Animation({ sprite_sheet: "./img/map.png", frame_size: [16, 16], frame_duration: 400 });
 					portal_animation = portal_animation.slice(3, 6);
 					
-					guessbox_animation = new jaws.Animation({ sprite_sheet: "./img/guessbox.png", frame_size: [16, 16], frame_duration: 600 });
-					possion_animation = guessbox_animation.slice(3,4);					
+					fire_animation = new jaws.Animation({ sprite_sheet: "./img/fire.png", frame_size:[16,16], frame_duration: 50 })
+					guessbox_animation = new jaws.Animation({ sprite_sheet: "./img/guessbox.png", frame_size: [16, 16], frame_duration: 100 });
+					possion_animation = guessbox_animation.slice(3,5);					
 					guessbox_animation = guessbox_animation.slice( 0, 2 );
 					places_animation = new jaws.Animation({ sprite_sheet: "./img/places.png", frame_size: [192, 48], frame_duration: 600, orientation: "down" });
 					croco_right_animation = new jaws.Animation({ sprite_sheet: "./img/croco.png", frame_size: [16, 16], frame_duration: 200 });
 					croco_left_animation = croco_right_animation.slice(2, 4);
+					crocodead_right_animation = croco_right_animation.slice(6, 8);
+					crocodead_left_animation = croco_right_animation.slice(8, 10);
 					croco_right_animation = croco_right_animation.slice(0, 2);
 					
 					levelA_sprite = new jaws.Sprite({image: places_animation.frames[0], x:0, y: 0 });
@@ -82,6 +182,13 @@
 					cave_img = map_spritesheet.frames[6];
 					box_img = map_spritesheet.frames[7];
 					heart_img = map_spritesheet.frames[8];
+					key_img = map_spritesheet.frames[2];
+					
+					key_sprite = new jaws.Sprite({ image: key_img, x:0 , y: (onscreen_map.size[1]-2)*16, anchor: "top_left" });
+					key_sprite.visible = true;
+					key_sprite.is_solid = false;
+					key_sprite.update = function(){};
+					onscreen_map.push( key_sprite );
 					
 					var new_block;
 					
@@ -106,14 +213,22 @@
 							possion_sprite =
 							new jaws.Sprite({ image: possion_animation.next(), x: guessbox_sprite.x, y: guessbox_sprite.y });
 							possion_sprite.is_solid = false;
-							possion_sprite.type = 'possion';
+							possion_sprite.type = 'firepossion';
 							possion_sprite.time_life = 55;
 							possion_sprite.vy = 0.6;
 							possion_sprite.visible = true;
-							possion_sprite.update = function(){
+							possion_sprite.touchable = false;
+							possion_sprite.update = function(){							
+								if( this.touchable == false ){
+									this.setImage( possion_animation.next() );
+								}else{
+									this.setImage( possion_animation.frames[1] );
+								}
+							
 								this.time_life --;
 								if( this.time_life < 0 ){
 									// not update position
+									possion_sprite.touchable = true;
 								}else{
 									this.y += this.vy;
 								}
@@ -162,6 +277,7 @@
 					new_block.update = function(){};
 					onscreen_map.push( new_block );
 					
+					// croco level A
 					croco_sprite = new jaws.Sprite({ image: croco_right_animation.next(), x:8*16, y :(j - 2)*16 })
 					croco_sprite.is_solid = true;
 					croco_sprite.type = 'enemy';
@@ -171,6 +287,9 @@
 					croco_sprite.time_cicle = 0;
 					croco_sprite.follow_time = 200;
 					croco_sprite.follow_hero = false;
+					croco_sprite.die = function(){
+						this.visible = false;
+					}
 					croco_sprite.update = function(){
 						this.x += this.vx;
 						
@@ -222,6 +341,80 @@
 						}
 					};
 					
+					// crocos level B
+					
+					// croco dead 1
+					crocodead_sprite = new jaws.Sprite({ image: crocodead_right_animation.next(), x:7*16, y :(j+1)*16 })
+					crocodead_sprite.is_solid = true;
+					crocodead_sprite.type = 'enemy';
+					crocodead_sprite.visible = true;
+					crocodead_sprite.vy = 0.5;
+					crocodead_sprite.vx = 2.2;
+					crocodead_sprite.die = function(){
+						this.visible = false;
+					}
+					crocodead_sprite.update = function(){
+						this.x += this.vx;
+						this.y += this.vy;
+						
+						var block_y = onscreen_map.atRect( crocodead_sprite.rect() ).filter(function(element){ return element.is_solid || element.type == 'cave'; })[0];
+						if( block_y ){
+							if( block_y.is_solid == true || block_y.type == 'cave' ){
+								this.x -= this.vx;
+								this.y -= this.vy;
+								
+								this.vy *= -1;
+							}
+						}
+						
+						if( this.x > ( 16* onscreen_map.size[0] ) || this.x < 0 ){
+							this.x -= this.vx;
+							this.vx *= -1;
+						}
+						
+						if( crocodead_sprite.vx > 0 ){
+							crocodead_sprite.setImage( crocodead_right_animation.next() );					
+						}else{
+							crocodead_sprite.setImage( crocodead_left_animation.next() );					
+						}
+					};
+					
+					// croco dead 2
+					crocodead_sprite2 = new jaws.Sprite({ image: crocodead_right_animation.next(), x:7*16, y :(j+1)*16 })
+					crocodead_sprite2.is_solid = true;
+					crocodead_sprite2.type = 'enemy';
+					crocodead_sprite2.visible = true;
+					crocodead_sprite2.vy = 0.1;
+					crocodead_sprite2.vx = -1.8;
+					crocodead_sprite2.die = function(){
+						this.visible = false;
+					}
+					crocodead_sprite2.update = function(){
+						this.x += this.vx;
+						this.y += this.vy;
+						
+						var block_y = onscreen_map.atRect( crocodead_sprite2.rect() ).filter(function(element){ return element.is_solid || element.type == 'cave'; })[0];
+						if( block_y ){
+							if( block_y.is_solid == true || block_y.type== 'cave' ){
+								this.x -= this.vx;
+								this.y -= this.vy;
+								
+								this.vy *= -1;
+							}
+						}
+						
+						if( this.x > ( 16* onscreen_map.size[0] ) || this.x < 0 ){
+							this.x -= this.vx;
+							this.vx *= -1;
+						}
+						
+						if( crocodead_sprite2.vx > 0 ){
+							crocodead_sprite2.setImage( crocodead_right_animation.next() );					
+						}else{
+							crocodead_sprite2.setImage( crocodead_left_animation.next() );					
+						}
+					};					
+					
 					j += 3;
 					
 					new_block = new jaws.Sprite({ image:door_img, x: 10 * 16, y: (j - 1)*16 });
@@ -241,15 +434,19 @@
 					};
 					onscreen_map.push( portal_sprite );
 					
-					for( i = 3 ; i < onscreen_map.size[0] ; i ++){
-						var new_block;
-						new_block = new jaws.Sprite({ image:block_img, x: i * 16, y: j*16 });
-						new_block.type = 'block';
-						new_block.is_solid = true;
-						new_block.visible = true;
-						new_block.update = function(){};
-						onscreen_map.push( new_block );
+					for( i = 0 ; i < onscreen_map.size[0] ; i ++){
+						if( i != 2 && i != 1 ){
+							var new_block;
+							new_block = new jaws.Sprite({ image:block_img, x: i * 16, y: j*16 });
+							new_block.type = 'block';
+							new_block.is_solid = true;
+							new_block.visible = true;
+							new_block.update = function(){};
+							onscreen_map.push( new_block );
+						}
 					}
+					
+					// 2 caves because hero is so fat..
 					
 					new_sprite = new jaws.Sprite({ image: cave_img, x: 2 * 16, y: j*16 });
 					new_sprite.is_solid = false;
@@ -258,10 +455,14 @@
 					new_sprite.update = function(){};
 					onscreen_map.push( new_sprite );
 					
-					// hero
-					/*hero_spritesheet = 
-					new jaws.SpriteSheet({image: "./img/hero.png", orientation: "down", frame_size: [16, 16]});
-					*/
+					new_sprite = new jaws.Sprite({ image: cave_img, x: 1 * 16, y: j*16 });
+					new_sprite.is_solid = false;
+					new_sprite.type = 'cave';
+					new_sprite.visible = true;
+					new_sprite.update = function(){};
+					onscreen_map.push( new_sprite );
+					
+					// Da hero
 					hero_right_animation = new jaws.Animation({ sprite_sheet: "./img/hero.png", orientation: "down", frame_size: [16, 16], frame_duration: 100});
 					hero_left_animation = hero_right_animation.slice(2, 4);
 					hero_right_animation = hero_right_animation.slice(0, 2);
@@ -271,24 +472,94 @@
 					hero_sprite.vx = 0;
 					hero_sprite.vy = 0;
 					hero_sprite.isJumping = false;
+					hero_sprite.hasFirePossion = false;
+					hero_sprite.last_orientation = 1; // 1(right) or -1(left)
 					
 					hero_sprite.update = function(){
 						this.x += this.vx;
 						
 						// collition in X?
 						var block_x = onscreen_map.atRect( hero_sprite.rect() ).filter( function( element ){ return element.is_solid; } )[0];
-						var crock_x = jaws.collide(croco_sprite, this, function(){
-							
-							setTimeout( function(){
-								hero_inmunity = false;
-							}, 1000 )
-							
-							if( hero_inmunity == false ){
-								hero_lifes --;
-								hero_inmunity = true;
-							}
+						
+						// touch Da key ?
+						var key_touched = false;
+						jaws.collide( key_sprite, this, function(){
+							alert(":) CONGRATULATIONS!'\r\n'FELICITACIONES!'\r\n'félicitations'\r\n'Glückwünsche'\r\n'おめでとうございます");
+							jaws.switchGameState( oneScreen_menu );
 						} );
-						if( block_x || crock_x ){
+						
+						// touch crock ?
+						var crock_x = false;
+						if( croco_sprite.visible == true ){
+							crock_x = jaws.collide(croco_sprite, this, function(){
+								
+								if( croco_sprite.visible == false ) return
+								
+								setTimeout( function(){
+									hero_inmunity = false;
+								}, 1000 )
+								
+								if( hero_inmunity == false ){
+									hero_lifes --;
+									hero_inmunity = true;
+								}
+								
+								audio_hurt.play();
+							} );
+						}
+						
+						var crockdead_x = false;
+						if( crocodead_sprite.visible == true ){
+							crockdead_x = jaws.collide(crocodead_sprite, this, function(){
+								
+								if( croco_sprite.visible == false ) return
+								
+								setTimeout( function(){
+									hero_inmunity = false;
+								}, 1000 )
+								
+								if( hero_inmunity == false ){
+									hero_lifes --;
+									hero_inmunity = true;
+								}
+								
+								audio_hurt.play();
+							} );
+						}
+						
+						var crockdead2_x = false;
+						if( crocodead_sprite2.visible == true ){
+							crockdead2_x = jaws.collide(crocodead_sprite2, this, function(){
+								
+								setTimeout( function(){
+									hero_inmunity = false;
+								}, 1000 )
+								
+								if( hero_inmunity == false ){
+									hero_lifes --;
+									hero_inmunity = true;
+								}
+								
+								audio_hurt.play();
+							} );
+						}
+						
+						// if possion exist, touch possion ?
+						var possion_x = null
+						if( possion_sprite ){
+							possion_x = jaws.collide( possion_sprite, this, function(){
+								if( possion_sprite.touchable == true ){
+									if( hero_sprite.hasFirePossion == false ){
+										audio_powerup.play();
+									}
+								
+									hero_sprite.hasFirePossion = true;
+									possion_sprite.visible = false;
+								}
+							} );
+						}
+						
+						if( block_x || crock_x || possion_x || crockdead_x || crockdead2_x ){
 							this.x -= this.vx;
 						}
 						this.vx = 0;
@@ -312,6 +583,8 @@
 							
 							this.vy = 0;
 						}
+						
+						jaws.forceInsideCanvas(this)
 					};
 					hero_sprite.listen_keys = function(){
 						var dx = 1.5;
@@ -320,17 +593,24 @@
 						if( jaws.pressed("left") ){
 							hero_sprite.vx = - dx;
 							hero_sprite.setImage( hero_left_animation.next() );
+							
+							this.last_orientation = -1;
 						}
 						
 						if( jaws.pressed("right") ){
 							hero_sprite.vx = dx;
 							hero_sprite.setImage( hero_right_animation.next() );
+							
+							this.last_orientation = 1;
 						}
 						
 						if( jaws.pressed("up") ){
 							if( hero_sprite.isJumping == false ){
 								hero_sprite.vy = - 3*dy ;
 								hero_sprite.isJumping = true;
+								
+								audio_jump.stop();
+								audio_jump.play();
 							}
 						}
 						
@@ -346,11 +626,94 @@
 							hero_scaled_spritesheet = new jaws.SpriteSheet({image: hero_scaled, frame_size: [32, 32], orientation: "down"})
 							hero_sprite.setImage( hero_scaled_spritesheet.frames[0] );
 						}
+					};
+					
+					fire_sprite = new jaws.Sprite({ image: fire_animation.frames[2], x: -1, y:0, anchor:"top_left" });
+					fire_sprite.update = function(){
+						var fire_x;
+						var fire_y;
+						var fire_angle;
+						var fire_image = fire_animation.frames[2];
+							
+						// update position relative to hero
+						if( hero_sprite.last_orientation == 1 ){
+							fire_x = hero_sprite.x + hero_sprite.width + 1;
+							fire_angle = 0;
+							
+							fire_y = hero_sprite.y;
+						}else{
+							fire_x = hero_sprite.x - 1;
+							fire_angle = 180;
+							
+							fire_y = hero_sprite.y + hero_sprite.height;
+						}
+						
+						fire_sprite.angle = fire_angle;
+						fire_sprite.x = fire_x;
+						fire_sprite.y = fire_y;
+						
+						if( jaws.pressed("z") && hero_sprite.hasFirePossion == true ){
+							audio_fire.play();
+							fire_sprite.setImage( fire_animation.next() );
+							
+							// fire touch some croco ?
+							jaws.collide( croco_sprite, this, function(){
+								croco_sprite.die();
+							} );
+							
+							jaws.collide( crocodead_sprite, this, function(){
+								crocodead_sprite.die();
+							} );
+							
+							jaws.collide( crocodead_sprite2 , this, function(){
+								crocodead_sprite2.die();
+							} );
+							
+						}else{
+							fire_sprite.setImage( fire_animation.frames[2] );
+						}
 					};					
 					
+					// scala
+					for( var t = 0 ; t < 10; t = t + 1 ){
+						for( var j = 0 ; j < t; j = j + 1){
+							var ew_sprite = new jaws.Sprite({ image: box_img, x: j*16, y: (7 + t)*16, anchor: "top_left" });
+							ew_sprite.visible = true;
+							ew_sprite.is_solid = true;
+							ew_sprite.update = function(){};
+							
+							onscreen_map.push( ew_sprite );
+						}
+					}
+					
+					// final floor
+					for( var u = 0; u < onscreen_map.size[0] ; u++ ){
+						var ew_sprite = new jaws.Sprite({ image: box_img, x: u*16, y: ( onscreen_map.size[1] - 1 )*16, anchor: "top_left" });
+						ew_sprite.visible = true;
+						ew_sprite.is_solid = true;
+						ew_sprite.update = function(){};
+						
+						onscreen_map.push( ew_sprite );
+					}
 				};
 				
 				this.update = function(){
+					jaws.on_keydown("enter", function(){
+						audio_pause.stop();
+						audio_pause.play();
+						
+						
+						if( paused == false ){
+							paused = true;
+						}else{
+							paused = false;
+						}
+					})
+					
+					if( paused == true ){
+						return;
+					}
+				
 					// hero
 					hero_sprite.vy += 0.4;
 					hero_sprite.listen_keys();
@@ -359,6 +722,9 @@
 					portal_sprite.update();
 					guessbox_sprite.update();
 					croco_sprite.update();
+					crocodead_sprite.update();
+					crocodead_sprite2.update();
+					fire_sprite.update();
 					
 					onscreen_map.all().forEach(function( element ){
 						element.update();
@@ -375,7 +741,8 @@
 					}
 					
 					if( hero_lifes < 0 ){
-						jaws.game_loop.pause();
+						alert("GAME OVER");
+						jaws.switchGameState( oneScreen_menu );
 					}
 				};
 				
@@ -392,7 +759,18 @@
 					});
 					
 					hero_sprite.draw();
-					croco_sprite.draw();
+					if( croco_sprite.visible == true ){
+						croco_sprite.draw();
+					}
+					
+					if(crocodead_sprite.visible == true ){
+						crocodead_sprite.draw();
+					}
+					if(crocodead_sprite2.visible == true ){
+						crocodead_sprite2.draw();
+					}
+					
+					fire_sprite.draw();
 					
 					hero_hearts.forEach( function(element){ element.draw(); } );
 				};
@@ -404,8 +782,17 @@
 								"./img/map.png",
 								"./img/guessbox.png",
 								"./img/places.png",
-								"./img/croco.png"]);
-				jaws.start( oneScreen );
+								"./img/croco.png",
+								"./img/menu.png",
+								"./img/fire.png",
+								"./sound/explosion.mp3",
+								"./sound/hurt.mp3",
+								"./sound/jump.mp3",
+								"./sound/shot.mp3",
+								"./sound/select.wav",
+								"./sound/enter.wav",
+								"./sound/powerup.wav"]);
+				jaws.start( oneScreen_menu );
 			}
 		</script>
 	</body>
